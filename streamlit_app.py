@@ -84,12 +84,16 @@ if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'user_id' not in st.session_state:
     st.session_state.user_id = ""
+if 'page' not in st.session_state:
+    st.session_state.page = "登入"
 
-# 預設頁面為登入，登入後才顯示更多功能
-if not st.session_state.authenticated:
-    page = st.sidebar.radio("選擇功能", ["登入", "註冊"])
-else:
-    page = st.sidebar.radio("選擇功能", ["登記可用時間", "查詢可配對使用者", "管理介面", "登出"])
+# 功能選單（無論登入與否都顯示，登入後才執行）
+page_options = ["登入", "註冊"]
+if st.session_state.authenticated:
+    page_options = ["登記可用時間", "查詢可配對使用者", "管理介面", "登出"]
+
+st.session_state.page = st.sidebar.radio("選擇功能", page_options, index=page_options.index(st.session_state.page) if st.session_state.page in page_options else 0)
+page = st.session_state.page
 
 if page == "註冊":
     st.header("註冊帳號")
@@ -112,18 +116,19 @@ elif page == "登入":
         if authenticate_user(login_user, login_pass):
             st.session_state.authenticated = True
             st.session_state.user_id = login_user
+            st.session_state.page = "登記可用時間"
             st.success(f"歡迎 {login_user}，請從左側選單選擇功能")
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
-elif page == "登記可用時間":
+elif page == "登記可用時間" and st.session_state.authenticated:
     st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
     dates = st.text_input("可用日期（以逗號分隔）")
     if st.button("提交可用日期"):
         date_list = [d.strip() for d in dates.split(',') if d.strip()]
         update_availability(st.session_state.user_id, date_list)
 
-elif page == "查詢可配對使用者":
+elif page == "查詢可配對使用者" and st.session_state.authenticated:
     st.header("查詢誰在某天有空")
     date = st.text_input("查詢日期（格式：2025-06-01）")
     if st.button("查詢"):
@@ -137,10 +142,11 @@ elif page == "查詢可配對使用者":
         else:
             st.warning("請輸入查詢日期")
 
-elif page == "管理介面":
+elif page == "管理介面" and st.session_state.authenticated:
     show_all_users()
 
 elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
+    st.session_state.page = "登入"
     st.success("您已成功登出")
