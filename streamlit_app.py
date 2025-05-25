@@ -128,16 +128,10 @@ elif page == "登入":
 elif page == "登記可用時間" and st.session_state.authenticated:
     st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
     date_range = pd.date_range(date.today(), periods=30).tolist()
-    selected_date = st.selectbox("請選擇可用日期（可重複操作多次）：", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
-    current_df = get_df()
-    current_user_row = current_df[current_df['user_id'] == st.session_state.user_id]
-    already = selected_date.strftime("%Y-%m-%d") in (current_user_row['available_dates'].values[0].split(',') if not current_user_row.empty else [])
-    if st.button("新增此日期"):
-        if not already:
-            updated_list = (current_user_row['available_dates'].values[0].split(',') if not current_user_row.empty else []) + [selected_date.strftime("%Y-%m-%d")]
-            update_availability(st.session_state.user_id, list(set(updated_list)))
-        else:
-            st.warning("該日期已存在")
+    selected_dates = st.multiselect("請選擇可用日期：", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
+    if st.button("更新可用日期"):
+        selected_strs = [d.strftime("%Y-%m-%d") for d in selected_dates]
+        update_availability(st.session_state.user_id, selected_strs)
 
 elif page == "查詢可配對使用者" and st.session_state.authenticated:
     st.header("查詢誰在某天有空")
