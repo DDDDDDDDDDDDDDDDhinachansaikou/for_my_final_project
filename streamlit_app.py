@@ -5,7 +5,6 @@ import json
 from google.oauth2 import service_account
 import gspread
 from datetime import date
-import time
 
 # 使用 Streamlit Secrets 讀取 Google Sheets 金鑰
 secrets = st.secrets["gspread"]
@@ -93,10 +92,8 @@ if 'remember_me' not in st.session_state:
 
 # 自動頁面跳轉
 if st.session_state.page == "登入成功":
-    time.sleep(1)
     st.session_state.page = "登記可用時間"
 elif st.session_state.page == "登出完成":
-    time.sleep(1)
     st.session_state.page = "登入"
 
 # 功能選單
@@ -150,7 +147,8 @@ elif page == "查詢可配對使用者" and st.session_state.authenticated:
         users = find_users_by_date(query_str, st.session_state.user_id)
         if users:
             st.info(f"在 {query_str} 有空的使用者：")
-            st.markdown("\n".join([f"- {user}" for user in users]))
+            for user in users:
+                st.markdown(f"- {user}")
         else:
             st.warning("當天無人可配對")
 
