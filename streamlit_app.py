@@ -120,7 +120,10 @@ elif st.session_state.page == "登出完成" and not st.session_state.rerun_trig
 # 功能選單
 page_options = ["登入", "註冊"]
 if st.session_state.authenticated:
-    page_options = ["登記可用時間", "查詢可配對使用者", "管理介面", "登出"]
+    page_options = ["登記可用時間", "查詢可配對使用者"]
+    if st.session_state.user_id == "GM":
+        page_options.append("管理介面")
+    page_options.append("登出")
 
 selected_page = st.sidebar.radio("選擇功能", page_options, index=page_options.index(st.session_state.page) if st.session_state.page in page_options else 0)
 st.session_state.page = selected_page
@@ -183,7 +186,7 @@ elif page == "查詢可配對使用者" and st.session_state.authenticated:
         if not any_found:
             st.warning("所選日期中無人可配對")
 
-elif page == "管理介面" and st.session_state.authenticated:
+elif page == "管理介面" and st.session_state.authenticated and st.session_state.user_id == "GM":
     show_all_users()
 
 elif page == "登出":
