@@ -4,6 +4,7 @@ import os
 import json
 from google.oauth2 import service_account
 import gspread
+from datetime import date
 
 # 使用 Streamlit Secrets 讀取 Google Sheets 金鑰
 secrets = st.secrets["gspread"]
@@ -123,24 +124,25 @@ elif page == "登入":
 
 elif page == "登記可用時間" and st.session_state.authenticated:
     st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
-    dates = st.text_input("可用日期（格式：2025-06-01，以逗號分隔）")
+    selected_dates = st.multiselect("請選擇可用日期：", pd.date_range(date.today(), periods=30).tolist(), format_func=lambda d: d.strftime("%Y-%m-%d"))
+    date_str_list = [d.strftime("%Y-%m-%d") for d in selected_dates]
     if st.button("提交可用日期"):
-        date_list = [d.strip() for d in dates.split(',') if d.strip()]
-        update_availability(st.session_state.user_id, date_list)
+        if date_str_list:
+            update_availability(st.session_state.user_id, date_str_list)
+        else:
+            st.warning("請至少選擇一個日期")
 
 elif page == "查詢可配對使用者" and st.session_state.authenticated:
     st.header("查詢誰在某天有空")
-    date = st.text_input("查詢日期（格式：2025-06-01）")
+    query_date = st.date_input("選擇查詢日期：")
     if st.button("查詢"):
-        if date:
-            users = find_users_by_date(date)
-            if users:
-                st.info(f"在 {date} 有空的使用者：")
-                st.write(users)
-            else:
-                st.warning("當天無人可配對")
+        query_str = query_date.strftime("%Y-%m-%d")
+        users = find_users_by_date(query_str)
+        if users:
+            st.info(f"在 {query_str} 有空的使用者：")
+            st.write(users)
         else:
-            st.warning("請輸入查詢日期（格式：2025-06-01）")
+            st.warning("當天無人可配對")
 
 elif page == "管理介面" and st.session_state.authenticated:
     show_all_users()
