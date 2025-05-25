@@ -65,11 +65,19 @@ def find_users_by_date(date):
     matched = df[df['available_dates'].str.contains(date, na=False)]['user_id'].tolist()
     return matched
 
+def show_all_users():
+    st.subheader("使用者資料總覽")
+    df = get_df()
+    if df.empty:
+        st.info("目前尚無任何註冊使用者")
+    else:
+        st.dataframe(df)
+
 # Streamlit App
 st.title("多人會議可用時間系統")
 
-# 預設頁面為登入，並提供註冊切換選項
-page = st.sidebar.radio("選擇功能", ["登入", "註冊", "查詢可配對使用者"])
+# 預設頁面為登入，並提供註冊與管理功能
+page = st.sidebar.radio("選擇功能", ["登入", "註冊", "查詢可配對使用者", "管理介面"])
 
 if page == "註冊":
     st.header("註冊帳號")
@@ -111,3 +119,6 @@ elif page == "查詢可配對使用者":
                 st.warning("當天無人可配對")
         else:
             st.warning("請輸入查詢日期")
+
+elif page == "管理介面":
+    show_all_users()
