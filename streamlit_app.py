@@ -62,11 +62,11 @@ def update_availability(user_id, available_dates):
     save_df(df)
     st.success(f"使用者 {user_id} 的可用日期已更新為：{date_str}")
 
-def find_users_by_date(date):
+def find_users_by_date(date, current_user_id):
     df = get_df()
     if 'available_dates' not in df.columns:
         return []
-    matched = df[df['available_dates'].str.contains(date, na=False)]['user_id'].tolist()
+    matched = df[(df['available_dates'].str.contains(date, na=False)) & (df['user_id'] != current_user_id)]['user_id'].tolist()
     return matched
 
 def show_all_users():
@@ -137,7 +137,7 @@ elif page == "查詢可配對使用者" and st.session_state.authenticated:
     query_date = st.date_input("選擇查詢日期：")
     if st.button("查詢"):
         query_str = query_date.strftime("%Y-%m-%d")
-        users = find_users_by_date(query_str)
+        users = find_users_by_date(query_str, st.session_state.user_id)
         if users:
             st.info(f"在 {query_str} 有空的使用者：")
             st.write(users)
