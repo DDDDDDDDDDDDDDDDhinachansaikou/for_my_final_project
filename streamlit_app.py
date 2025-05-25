@@ -131,7 +131,101 @@ def get_friend_requests(user_id):
         return row.iloc[0]['friend_requests'].split(',') if row.iloc[0]['friend_requests'] else []
     return []
 
-# 好友管理功能頁面
+# 初始化狀態
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'user_id' not in st.session_state:
+    st.session_state.user_id = ""
+if 'page' not in st.session_state:
+    st.session_state.page = "登入"
+if 'page_marker' not in st.session_state:
+    st.session_state.page_marker = ""
+
+# 自動跳轉邏輯
+if st.session_state.page_marker != st.query_params.get("page", [""])[0]:
+    st.session_state.page = st.query_params.get("page", ["登入"])[0]
+    st.session_state.page_marker = st.session_state.page
+
+def navigate_to(page):
+    st.session_state.page = page
+    st.session_state.page_marker = page
+    st.query_params["page"] = page
+    st.rerun()
+
+# 側邊欄
+if st.session_state.authenticated:
+    pages = ["登記可用時間", "查詢可配對使用者", "好友管理"]
+    if st.session_state.user_id == "GM":
+        pages.append("管理介面")
+    pages.append("登出")
+else:
+    pages = ["登入", "註冊"]
+
+st.sidebar.radio("選擇功能", pages, index=pages.index(st.session_state.page), key="page")
+
+# 頁面功能整合
+if st.session_state.page == "註冊":
+    st.header("註冊帳號")
+    new_user = st.text_input("新使用者 ID")
+    new_pass = st.text_input("密碼", type="password")
+    if st.button("註冊"):
+        if new_user and new_pass:
+            if register_user(new_user, new_pass):
+                st.success("註冊成功！請前往登入頁面")
+                navigate_to("登入")
+            else:
+                st.warning("使用者已存在或密碼不合規")
+
+elif st.session_state.page == "登入":
+    st.header("登入帳號")
+    login_user = st.text_input("使用者 ID")
+    login_pass = st.text_input("密碼", type="password")
+    if st.button("登入"):
+        if authenticate_user(login_user, login_pass):
+            st.session_state.authenticated = True
+            st.session_state.user_id = login_user
+            st.success(f"歡迎 {login_user}，已成功登入。")
+            navigate_to("登記可用時間")
+        else:
+            st.error("帳號或密碼錯誤")
+
+elif st.session_state.page == "登記可用時間" and st.session_state.authenticated:
+    st.header("登記可用時間")
+    date_range = pd.date_range(date.today(), periods=30).tolist()
+    selected_dates = st.multiselect("選擇可用日期", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
+    if st.button("更新可用日期"):
+        selected_strs = [d.strftime("%Y-%m-%d") for d in selected_dates]
+        update_availability(st.session_state.user_id, selected_strs)
+
+elif st.session_state.page == "查詢可配對使用者" and st.session_state.authenticated:
+    st.header("查詢可配對使用者")
+    date_range = pd.date_range(date.today(), periods=30).tolist()
+    query_dates = st.multiselect("選擇查詢日期", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
+    if st.button("查詢"):
+        df = get_df()
+        results = {}
+        for d in query_dates:
+            date_str = d.strftime("%Y-%m-%d")
+            users = find_users_by_date(date_str, st.session_state.user_id)
+            if users:
+                results[date_str] = users
+        if results:
+            for d, users in results.items():
+                st.markdown(f"### {d}")
+                for u in users:
+                    st.markdown(f"- {u}")
+        else:
+            st.warning("選擇日期中無配對使用者")
+
+elif st.session_state.page == "管理介面" and st.session_state.user_id == "GM":
+    show_all_users()
+
+elif st.session_state.page == "登出":
+    st.session_state.authenticated = False
+    st.session_state.user_id = ""
+    navigate_to("登入")
+
+# 好友管理頁面（保持原有）
 if 'page' in st.session_state and st.session_state.get('authenticated', False):
     if st.session_state.page == "好友管理":
         st.header("好友管理")
