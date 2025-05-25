@@ -80,11 +80,6 @@ def show_all_users():
 # Streamlit App
 st.title("多人會議可用時間系統")
 
-# URL query-based page control
-query_page = st.query_params.get("page")
-if query_page:
-    st.session_state.page = query_page
-
 # 初始化 session state
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
@@ -94,6 +89,18 @@ if 'page' not in st.session_state:
     st.session_state.page = "登入"
 if 'remember_me' not in st.session_state:
     st.session_state.remember_me = False
+if 'rerouted' not in st.session_state:
+    st.session_state.rerouted = False
+
+# URL query-based page control
+query_page = st.query_params.get("page")
+if query_page:
+    st.session_state.page = query_page
+
+# 清除 rerouted 標記避免循環
+if st.session_state.rerouted:
+    st.session_state.rerouted = False
+    st.rerun()
 
 # 功能選單
 page_options = ["登入", "註冊"]
@@ -113,6 +120,8 @@ if page == "註冊":
             if register_user(new_user, new_pass):
                 st.success("註冊成功！請前往登入頁面")
                 st.query_params["page"] = "登入"
+                st.session_state.rerouted = True
+                st.rerun()
         else:
             st.warning("請填入完整資訊")
 
@@ -128,6 +137,8 @@ elif page == "登入":
             st.session_state.remember_me = remember
             st.success(f"歡迎 {login_user}，已成功登入。")
             st.query_params["page"] = "登記可用時間"
+            st.session_state.rerouted = True
+            st.rerun()
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
@@ -161,3 +172,5 @@ elif page == "登出":
     st.session_state.remember_me = False
     st.success("您已成功登出。")
     st.query_params["page"] = "登入"
+    st.session_state.rerouted = True
+    st.rerun()
