@@ -105,9 +105,6 @@ if page == "註冊":
             if register_user(new_user, new_pass):
                 st.success("註冊成功！請前往登入頁面")
                 st.session_state.page = "登入"
-                st.experimental_rerun()
-            else:
-                st.error("該 ID 已存在，請使用其他名稱")
         else:
             st.warning("請填入完整資訊")
 
@@ -121,20 +118,22 @@ elif page == "登入":
             st.session_state.user_id = login_user
             st.session_state.page = "登記可用時間"
             st.success(f"歡迎 {login_user}，請稍候...")
-            st.experimental_rerun()
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
 elif page == "登記可用時間" and st.session_state.authenticated:
     st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
     date_range = pd.date_range(date.today(), periods=30).tolist()
-    selected_dates = st.multiselect("請選擇可用日期：", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
-    date_str_list = [d.strftime("%Y-%m-%d") for d in selected_dates]
-    if st.button("提交可用日期"):
-        if date_str_list:
-            update_availability(st.session_state.user_id, date_str_list)
+    selected_date = st.selectbox("請選擇可用日期（可重複操作多次）：", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
+    current_df = get_df()
+    current_user_row = current_df[current_df['user_id'] == st.session_state.user_id]
+    already = selected_date.strftime("%Y-%m-%d") in (current_user_row['available_dates'].values[0].split(',') if not current_user_row.empty else [])
+    if st.button("新增此日期"):
+        if not already:
+            updated_list = (current_user_row['available_dates'].values[0].split(',') if not current_user_row.empty else []) + [selected_date.strftime("%Y-%m-%d")]
+            update_availability(st.session_state.user_id, list(set(updated_list)))
         else:
-            st.warning("請至少選擇一個日期")
+            st.warning("該日期已存在")
 
 elif page == "查詢可配對使用者" and st.session_state.authenticated:
     st.header("查詢誰在某天有空")
@@ -155,5 +154,8 @@ elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
     st.session_state.page = "登入"
-    st.success("您已成功登出，正在跳轉...")
+    st.success("您已成功登出，請從左側重新登入")
+
+# 自動跳轉回登入畫面（避免直接使用 rerun 錯誤）
+if st.session_state.page == "登入" and page != "登入":
     st.experimental_rerun()
