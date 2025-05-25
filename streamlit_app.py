@@ -93,8 +93,8 @@ page_options = ["登入", "註冊"]
 if st.session_state.authenticated:
     page_options = ["登記可用時間", "查詢可配對使用者", "管理介面", "登出"]
 
-st.session_state.page = st.sidebar.radio("選擇功能", page_options, index=page_options.index(st.session_state.page) if st.session_state.page in page_options else 0)
-page = st.session_state.page
+selected_page = st.sidebar.radio("選擇功能", page_options, index=page_options.index(st.session_state.page) if st.session_state.page in page_options else 0)
+page = selected_page
 
 if page == "註冊":
     st.header("註冊帳號")
@@ -104,6 +104,8 @@ if page == "註冊":
         if new_user and new_pass:
             if register_user(new_user, new_pass):
                 st.success("註冊成功！請前往登入頁面")
+                st.session_state.page = "登入"
+                st.experimental_rerun()
             else:
                 st.error("該 ID 已存在，請使用其他名稱")
         else:
@@ -118,7 +120,8 @@ elif page == "登入":
             st.session_state.authenticated = True
             st.session_state.user_id = login_user
             st.session_state.page = "登記可用時間"
-            st.success(f"歡迎 {login_user}，請從左側選單選擇功能")
+            st.success(f"歡迎 {login_user}，請稍候...")
+            st.experimental_rerun()
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
@@ -152,4 +155,5 @@ elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
     st.session_state.page = "登入"
-    st.success("您已成功登出")
+    st.success("您已成功登出，正在跳轉...")
+    st.experimental_rerun()
