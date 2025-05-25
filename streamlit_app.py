@@ -5,7 +5,6 @@ import json
 from google.oauth2 import service_account
 import gspread
 from datetime import date
-import time
 
 # 使用 Streamlit Secrets 讀取 Google Sheets 金鑰
 secrets = st.secrets["gspread"]
@@ -91,14 +90,6 @@ if 'page' not in st.session_state:
 if 'remember_me' not in st.session_state:
     st.session_state.remember_me = False
 
-# 自動頁面跳轉
-if st.session_state.page == "登入成功":
-    time.sleep(1)
-    st.session_state.page = "登記可用時間"
-elif st.session_state.page == "登出完成":
-    time.sleep(1)
-    st.session_state.page = "登入"
-
 # 功能選單
 page_options = ["登入", "註冊"]
 if st.session_state.authenticated:
@@ -116,6 +107,7 @@ if page == "註冊":
             if register_user(new_user, new_pass):
                 st.success("註冊成功！請前往登入頁面")
                 st.session_state.page = "登入"
+                st.experimental_rerun()
         else:
             st.warning("請填入完整資訊")
 
@@ -128,9 +120,10 @@ elif page == "登入":
         if authenticate_user(login_user, login_pass):
             st.session_state.authenticated = True
             st.session_state.user_id = login_user
-            st.session_state.page = "登入成功"
+            st.session_state.page = "登記可用時間"
             st.session_state.remember_me = remember
             st.success(f"歡迎 {login_user}，已成功登入。")
+            st.experimental_rerun()
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
@@ -149,7 +142,7 @@ elif page == "查詢可配對使用者" and st.session_state.authenticated:
     if st.button("查詢"):
         users = find_users_by_date(query_str, st.session_state.user_id)
         if users:
-            st.info(f"在 {query_str} 有空的使用者：")
+            st.success(f"在 {query_str} 有空的使用者：")
             for user in users:
                 st.markdown(f"- {user}")
         else:
@@ -161,6 +154,7 @@ elif page == "管理介面" and st.session_state.authenticated:
 elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
-    st.session_state.page = "登出完成"
+    st.session_state.page = "登入"
     st.session_state.remember_me = False
     st.success("您已成功登出。")
+    st.experimental_rerun()
