@@ -137,20 +137,18 @@ if 'authenticated' not in st.session_state:
 if 'user_id' not in st.session_state:
     st.session_state.user_id = ""
 if 'page' not in st.session_state:
-    st.session_state.page = "登入"
-if 'page_marker' not in st.session_state:
-    st.session_state.page_marker = ""
-
-# 自動跳轉邏輯
-if st.session_state.page_marker != st.query_params.get("page", [""])[0]:
     st.session_state.page = st.query_params.get("page", ["登入"])[0]
+if 'page_marker' not in st.session_state:
     st.session_state.page_marker = st.session_state.page
 
 def navigate_to(page):
-    st.session_state.page = page
-    st.session_state.page_marker = page
     st.query_params["page"] = page
     st.rerun()
+
+# 頁面同步
+if st.session_state.page_marker != st.query_params.get("page", [""])[0]:
+    st.session_state.page = st.query_params.get("page", ["登入"])[0]
+    st.session_state.page_marker = st.session_state.page
 
 # 側邊欄
 if st.session_state.authenticated:
@@ -225,7 +223,6 @@ elif st.session_state.page == "登出":
     st.session_state.user_id = ""
     navigate_to("登入")
 
-# 好友管理頁面（保持原有）
 if 'page' in st.session_state and st.session_state.get('authenticated', False):
     if st.session_state.page == "好友管理":
         st.header("好友管理")
