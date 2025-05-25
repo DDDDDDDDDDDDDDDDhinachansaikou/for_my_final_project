@@ -24,6 +24,111 @@ client = gspread.authorize(scoped_credentials)
 sheet = client.open(SHEET_NAME).sheet1
 
 # 資料存取函數
+@st.cache_data(ttl=60)
+def get_df():
+    records = sheet.get_all_records()
+    df = pd.DataFrame(records)
+    if df.empty:
+        df = pd.DataFrame(columns=['user_id', 'password', 'available_dates', 'friends', 'friend_requests'])
+    else:
+        for col in ['user_id', 'password', 'available_dates', 'friends', 'friend_requests']:
+            if col not in df.columns:
+                df[col] = ''
+        df['user_id'] = df['user_id'].astype(str)
+        df['password'] = df['password'].astype(str)
+    return df
+
+def save_df(df):
+    sheet.clear()
+    sheet.update([df.columns.values.tolist()] + df.values.tolist())
+
+def register_user(user_id, password):
+    user_id = str(user_id)
+    password = str(password)
+    if len(password) < 6 or not re.search(r'[A-Za-z]', password):
+        st.warning("密碼必須至少 6 個字元，且包含至少一個英文字母")
+        return False
+    df = get_df()
+    if user_id in df['user_id'].values:
+        return False
+    new_entry = pd.DataFrame([{
+        'user_id': user_id,
+        'password': password,
+        'available_dates': '',
+        'friends': '',
+        'friend_requests': ''
+    }])
+    df = pd.concat([df, new_entry], ignore_index=True)
+    save_df(df)
+    return True
+
+def authenticate_user(user_id, password):
+    df = get_df()
+    match = df[(df['user_id'] == str(user_id)) & (df['password'] == str(password))]
+    return not match.empty
+
+def update_availability(user_id, available_dates):
+    df = get_df()
+    date_str = ','.join(available_dates)
+    df.loc[df['user_id'] == user_id, 'available_dates'] = date_str
+    save_df(df)
+    st.success(f"使用者 {user_id} 的可用日期已更新為：{date_str}")
+
+def find_users_by_date(date, current_user_id):
+    df = get_df()
+    matched = df[(df['available_dates'].str.contains(date, na=False)) & (df['user_id'] != current_user_id)]['user_id'].tolist()
+    return matched
+
+def show_all_users():
+    st.subheader("使用者資料總覽")
+    df = get_df()
+    st.dataframe(df)
+
+def send_friend_request(current_user, target_user):
+    df = get_df()
+    if target_user not in df['user_id'].values:
+        st.error("使用者不存在")
+        return
+    target_idx = df[df['user_id'] == target_user].index[0]
+    existing = df.at[target_idx, 'friend_requests']
+    requests = set(existing.split(',')) if existing else set()
+    if current_user in requests:
+        st.info("已發送申請")
+    else:
+        requests.add(current_user)
+        df.at[target_idx, 'friend_requests'] = ','.join(requests)
+        save_df(df)
+        st.success("好友申請已送出")
+
+def respond_to_requests(user_id):
+    df = get_df()
+    idx = df[df['user_id'] == user_id].index[0]
+    requests = df.at[idx, 'friend_requests']
+    requests = list(filter(None, requests.split(',')))
+    if not requests:
+        st.info("目前沒有好友申請")
+        return
+    df_friends = set(df.at[idx, 'friends'].split(',')) if df.at[idx, 'friends'] else set()
+    for requester in requests:
+        col1, col2 = st.columns([2,1])
+        with col1:
+            st.write(f"來自 {requester} 的好友申請")
+        with col2:
+            if st.button("接受", key=f"acc_{requester}"):
+                df_friends.add(requester)
+                df.at[idx, 'friend_requests'] = ','.join([r for r in requests if r != requester])
+                df.at[idx, 'friends'] = ','.join(df_friends)
+                r_idx = df[df['user_id'] == requester].index[0]
+                r_friends = set(df.at[r_idx, 'friends'].split(',')) if df.at[r_idx, 'friends'] else set()
+                r_friends.add(user_id)
+                df.at[r_idx, 'friends'] = ','.join(r_friends)
+                save_df(df)
+                st.success(f"您已與 {requester} 成為好友")
+            elif st.button("拒絕", key=f"rej_{requester}"):
+                df.at[idx, 'friend_requests'] = ','.join([r for r in requests if r != requester])
+                save_df(df)
+                st.info(f"已拒絕 {requester} 的好友申請")
+                
 def get_df():
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
@@ -197,3 +302,12 @@ elif page == "登出":
     st.session_state.page = "登出完成"
     st.session_state.rerun_triggered = False
     st.rerun()
+
+if st.session_state.get("authenticated"):
+    st.sidebar.subheader("好友功能")
+    with st.sidebar.expander("送出好友申請"):
+        target = st.text_input("輸入對方 ID", key="apply_friend")
+        if st.button("送出好友申請"):
+            send_friend_request(st.session_state.user_id, target)
+    with st.sidebar.expander("回應好友申請"):
+        respond_to_requests(st.session_state.user_id)
