@@ -130,3 +130,49 @@ def get_friend_requests(user_id):
     if not row.empty:
         return row.iloc[0]['friend_requests'].split(',') if row.iloc[0]['friend_requests'] else []
     return []
+
+# 好友管理功能頁面
+if 'page' in st.session_state and st.session_state.get('authenticated', False):
+    if st.session_state.page == "好友管理":
+        st.header("好友管理")
+
+        st.subheader("目前好友")
+        friends = get_friends(st.session_state.user_id)
+        if friends:
+            st.markdown(", ".join(friends))
+        else:
+            st.info("目前尚無好友")
+
+        st.subheader("發送好友申請")
+        to_user = st.text_input("輸入要加為好友的使用者 ID")
+        if st.button("送出好友申請"):
+            if to_user != st.session_state.user_id:
+                send_friend_request(st.session_state.user_id, to_user)
+            else:
+                st.warning("不能加自己為好友")
+
+        st.subheader("收到的好友申請")
+        requests = get_friend_requests(st.session_state.user_id)
+        if requests:
+            for r in requests:
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.markdown(f"好友申請來自：**{r}**")
+                with col2:
+                    if st.button(f"接受_{r}"):
+                        respond_to_friend_request(st.session_state.user_id, r, True)
+                    if st.button(f"拒絕_{r}"):
+                        respond_to_friend_request(st.session_state.user_id, r, False)
+        else:
+            st.info("目前無收到好友申請")
+
+        st.subheader("查詢好友的可用時間")
+        if friends:
+            selected_friend = st.selectbox("選擇好友", friends)
+            df = get_df()
+            row = df[df['user_id'] == selected_friend]
+            if not row.empty:
+                dates = row.iloc[0]['available_dates']
+                st.markdown(f"**{selected_friend}** 的可用時間為：\n{dates}")
+        else:
+            st.info("尚無好友可以查詢")
