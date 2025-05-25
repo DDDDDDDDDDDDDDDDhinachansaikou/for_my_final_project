@@ -97,45 +97,68 @@ def send_friend_request(current_user, target_user):
     if target_user not in df['user_id'].values:
         st.error("使用者不存在")
         return
+
+    if current_user == target_user:
+        st.warning("無法向自己發送好友申請")
+        return
+
     target_idx = df[df['user_id'] == target_user].index[0]
-    existing = df.at[target_idx, 'friend_requests']
-    requests = set(existing.split(',')) if existing else set()
-    if current_user in requests:
-        st.info("已發送申請")
-    else:
-        requests.add(current_user)
-        df.at[target_idx, 'friend_requests'] = ','.join(requests)
-        save_df(df)
-        st.success("好友申請已送出")
+    requester_idx = df[df['user_id'] == current_user].index[0]
+
+    target_friends = set(filter(None, df.at[target_idx, 'friends'].split(',')))
+    if current_user in target_friends:
+        st.info("您們已經是好友了")
+        return
+
+    existing_requests = set(filter(None, df.at[target_idx, 'friend_requests'].split(',')))
+    if current_user in existing_requests:
+        st.info("已發送好友申請")
+        return
+
+    existing_requests.add(current_user)
+    df.at[target_idx, 'friend_requests'] = ','.join(existing_requests)
+    save_df(df)
+    st.success("好友申請已送出")
+
 
 def respond_to_requests(user_id):
     df = get_df()
     idx = df[df['user_id'] == user_id].index[0]
-    requests = df.at[idx, 'friend_requests']
-    requests = list(filter(None, requests.split(',')))
+    requests = list(filter(None, df.at[idx, 'friend_requests'].split(',')))
+
     if not requests:
         st.info("目前沒有好友申請")
         return
-    df_friends = set(df.at[idx, 'friends'].split(',')) if df.at[idx, 'friends'] else set()
+
+    current_friends = set(filter(None, df.at[idx, 'friends'].split(',')))
+
     for requester in requests:
-        col1, col2 = st.columns([2,1])
+        col1, col2 = st.columns([2, 1])
         with col1:
             st.write(f"來自 {requester} 的好友申請")
         with col2:
-            if st.button("接受", key=f"acc_{requester}"):
-                df_friends.add(requester)
-                df.at[idx, 'friend_requests'] = ','.join([r for r in requests if r != requester])
-                df.at[idx, 'friends'] = ','.join(df_friends)
-                r_idx = df[df['user_id'] == requester].index[0]
-                r_friends = set(df.at[r_idx, 'friends'].split(',')) if df.at[r_idx, 'friends'] else set()
-                r_friends.add(user_id)
-                df.at[r_idx, 'friends'] = ','.join(r_friends)
+            if st.button("接受", key=f"accept_{requester}"):
+                if requester not in current_friends:
+                    current_friends.add(requester)
+                    df.at[idx, 'friends'] = ','.join(current_friends)
+
+                    requester_idx = df[df['user_id'] == requester].index[0]
+                    requester_friends = set(filter(None, df.at[requester_idx, 'friends'].split(',')))
+                    requester_friends.add(user_id)
+                    df.at[requester_idx, 'friends'] = ','.join(requester_friends)
+
+                # 不論接受或拒絕，申請都應移除
+                updated_requests = [r for r in requests if r != requester]
+                df.at[idx, 'friend_requests'] = ','.join(updated_requests)
                 save_df(df)
                 st.success(f"您已與 {requester} 成為好友")
-            elif st.button("拒絕", key=f"rej_{requester}"):
-                df.at[idx, 'friend_requests'] = ','.join([r for r in requests if r != requester])
+
+            elif st.button("拒絕", key=f"reject_{requester}"):
+                updated_requests = [r for r in requests if r != requester]
+                df.at[idx, 'friend_requests'] = ','.join(updated_requests)
                 save_df(df)
                 st.info(f"已拒絕 {requester} 的好友申請")
+
 
 def show_friends_availability(user_id):
     df = get_df()
