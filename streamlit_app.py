@@ -107,7 +107,7 @@ if page == "註冊":
             if register_user(new_user, new_pass):
                 st.success("註冊成功！請前往登入頁面")
                 st.session_state.page = "登入"
-                st.experimental_rerun()
+                st.session_state.go_to_login = True
         else:
             st.warning("請填入完整資訊")
 
@@ -123,7 +123,7 @@ elif page == "登入":
             st.session_state.page = "登記可用時間"
             st.session_state.remember_me = remember
             st.success(f"歡迎 {login_user}，已成功登入。")
-            st.experimental_rerun()
+            st.session_state.go_to_availability = True
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
@@ -157,4 +157,15 @@ elif page == "登出":
     st.session_state.page = "登入"
     st.session_state.remember_me = False
     st.success("您已成功登出。")
-    st.experimental_rerun()
+    st.session_state.go_to_login = True
+
+# 手動控制跳轉避免 experimental_rerun
+if st.session_state.get("go_to_availability"):
+    st.session_state.page = "登記可用時間"
+    st.session_state.go_to_availability = False
+    st.experimental_set_query_params()
+
+if st.session_state.get("go_to_login"):
+    st.session_state.page = "登入"
+    st.session_state.go_to_login = False
+    st.experimental_set_query_params()
