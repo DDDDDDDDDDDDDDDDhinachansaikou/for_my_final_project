@@ -119,11 +119,16 @@ elif page == "登入":
         if authenticate_user(login_user, login_pass):
             st.session_state.authenticated = True
             st.session_state.user_id = login_user
-            st.session_state.page = "登記可用時間"
+            st.session_state.page = "登入成功"
             st.session_state.remember_me = remember
-            st.success(f"歡迎 {login_user}，已成功登入。請在左側選單繼續操作。")
+            st.success(f"歡迎 {login_user}，已成功登入。")
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
+
+elif page == "登入成功":
+    st.success(f"歡迎 {st.session_state.user_id}，您已登入成功。")
+    if st.button("前往登記可用時間"):
+        st.session_state.page = "登記可用時間"
 
 elif page == "登記可用時間" and st.session_state.authenticated:
     st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
@@ -151,6 +156,11 @@ elif page == "管理介面" and st.session_state.authenticated:
 elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
-    st.session_state.page = "登入"
+    st.session_state.page = "登出完成"
     st.session_state.remember_me = False
-    st.success("您已成功登出，請重新登入。")
+    st.success("您已成功登出。")
+
+elif page == "登出完成":
+    st.success("您已成功登出。")
+    if st.button("回到登入畫面"):
+        st.session_state.page = "登入"
