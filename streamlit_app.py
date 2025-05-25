@@ -8,15 +8,28 @@ from datetime import date
 import time
 import re
 
-# === Initialization and Google Sheets connection ===
+# 使用 Streamlit Secrets 讀取 Google Sheets 金鑰
 secrets = st.secrets["gspread"]
 credentials = service_account.Credentials.from_service_account_info(secrets)
+
+# 指定必要 scope
 scoped_credentials = credentials.with_scopes([
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ])
+
+# 連接 Google Sheets
+SHEET_NAME = 'meeting_records'
 client = gspread.authorize(scoped_credentials)
-sheet = client.open('meeting_records').sheet1
+try:
+    sheet = client.open(SHEET_NAME).sheet1
+except gspread.exceptions.SpreadsheetNotFound:
+    st.error(f"找不到名為 `{SHEET_NAME}` 的 Google Sheets 文件，請確認名稱是否正確")
+    st.stop()
+except gspread.exceptions.APIError as e:
+    st.error(f"Google Sheets API 錯誤：{e}")
+    st.stop()
+
 
 # === Helper Functions ===
 def get_df():
