@@ -87,6 +87,8 @@ if 'user_id' not in st.session_state:
     st.session_state.user_id = ""
 if 'page' not in st.session_state:
     st.session_state.page = "登入"
+if 'remember_me' not in st.session_state:
+    st.session_state.remember_me = False
 
 # 功能選單（無論登入與否都顯示，登入後才執行）
 page_options = ["登入", "註冊"]
@@ -112,11 +114,13 @@ elif page == "登入":
     st.header("登入帳號")
     login_user = st.text_input("使用者 ID")
     login_pass = st.text_input("密碼", type="password")
+    remember = st.checkbox("記住我")
     if st.button("登入"):
         if authenticate_user(login_user, login_pass):
             st.session_state.authenticated = True
             st.session_state.user_id = login_user
             st.session_state.page = "登記可用時間"
+            st.session_state.remember_me = remember
             st.success(f"歡迎 {login_user}，已成功登入。請在左側選單繼續操作。")
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
@@ -154,4 +158,5 @@ elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
     st.session_state.page = "登入"
+    st.session_state.remember_me = False
     st.success("您已成功登出，請重新登入。")
