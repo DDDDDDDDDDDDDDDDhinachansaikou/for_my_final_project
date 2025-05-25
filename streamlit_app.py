@@ -34,6 +34,8 @@ def save_df(df):
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
 
 def register_user(user_id, password):
+    user_id = str(user_id)
+    password = str(password)
     df = get_df()
     if 'user_id' not in df.columns:
         df['user_id'] = ''
@@ -45,6 +47,8 @@ def register_user(user_id, password):
     return True
 
 def authenticate_user(user_id, password):
+    user_id = str(user_id)
+    password = str(password)
     df = get_df()
     if 'user_id' not in df.columns or 'password' not in df.columns:
         return False
