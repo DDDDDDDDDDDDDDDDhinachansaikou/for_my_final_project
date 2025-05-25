@@ -48,7 +48,7 @@ def update_availability(user_id, available_dates):
     date_str = ','.join(available_dates)
     df.loc[df['user_id'] == user_id, 'available_dates'] = date_str
     save_df(df)
-    st.success(f"\u2705 使用者 {user_id} 的可用日期已更新為：{date_str}")
+    st.success(f"✅ 使用者 {user_id} 的可用日期已更新為：{date_str}")
 
 def find_users_by_date(date):
     df = get_df()
@@ -56,39 +56,39 @@ def find_users_by_date(date):
     return matched
 
 # Streamlit App
-st.title("\ud83d\udcc5 多人會議可用時間系統")
+st.title("📅 多人會議可用時間系統")
 
 page = st.sidebar.selectbox("選擇功能", ["註冊", "登入並登記時間", "查詢可配對使用者"])
 
 if page == "註冊":
-    st.header("\ud83d\udd11 註冊帳號")
+    st.header("🔑 註冊帳號")
     new_user = st.text_input("請輸入新使用者 ID")
     new_pass = st.text_input("請輸入密碼", type="password")
     if st.button("註冊"):
         if new_user and new_pass:
             if register_user(new_user, new_pass):
-                st.success("\ud83c\udf89 註冊成功！請前往登入頁面")
+                st.success("🎉 註冊成功！請前往登入頁面")
             else:
-                st.error("\u26a0\ufe0f 該 ID 已存在，請使用其他名稱")
+                st.error("⚠️ 該 ID 已存在，請使用其他名稱")
         else:
             st.warning("請填入完整資訊")
 
 elif page == "登入並登記時間":
-    st.header("\ud83d\udd10 登入帳號")
+    st.header("🔐 登入帳號")
     login_user = st.text_input("使用者 ID")
     login_pass = st.text_input("密碼", type="password")
     if st.button("登入"):
         if authenticate_user(login_user, login_pass):
-            st.success(f"\ud83d\ude80 歡迎 {login_user}，請輸入你的可用日期：")
+            st.success(f"🚀 歡迎 {login_user}，請輸入你的可用日期：")
             dates = st.text_input("可用日期（以逗號分隔）")
             if st.button("提交可用日期"):
                 date_list = [d.strip() for d in dates.split(',') if d.strip()]
                 update_availability(login_user, date_list)
         else:
-            st.error("\u26a0\ufe0f 登入失敗，請重新確認帳號與密碼")
+            st.error("⚠️ 登入失敗，請重新確認帳號與密碼")
 
 elif page == "查詢可配對使用者":
-    st.header("\ud83d\udd0d 查詢誰在某天有空")
+    st.header("🔍 查詢誰在某天有空")
     date = st.text_input("查詢日期（格式：2025-06-01）")
     if st.button("查詢"):
         if date:
