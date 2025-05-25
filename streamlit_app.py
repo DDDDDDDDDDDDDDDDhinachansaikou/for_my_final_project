@@ -90,21 +90,25 @@ if 'page' not in st.session_state:
     st.session_state.page = "登入"
 if 'remember_me' not in st.session_state:
     st.session_state.remember_me = False
+if 'rerun_triggered' not in st.session_state:
+    st.session_state.rerun_triggered = False
 
 # URL query-based page control
 query_page = st.query_params.get("page")
-if query_page:
+if query_page and st.session_state.page != query_page:
     st.session_state.page = query_page
 
 # 自動跳轉處理
-if st.session_state.page == "登入成功":
-    time.sleep(1)
+if st.session_state.page == "登入成功" and not st.session_state.rerun_triggered:
     st.session_state.page = "登記可用時間"
     st.query_params["page"] = "登記可用時間"
-elif st.session_state.page == "登出完成":
-    time.sleep(1)
+    st.session_state.rerun_triggered = True
+    st.rerun()
+elif st.session_state.page == "登出完成" and not st.session_state.rerun_triggered:
     st.session_state.page = "登入"
     st.query_params["page"] = "登入"
+    st.session_state.rerun_triggered = True
+    st.rerun()
 
 # 功能選單
 page_options = ["登入", "註冊"]
@@ -125,6 +129,8 @@ if page == "註冊":
                 st.success("註冊成功！請前往登入頁面")
                 st.session_state.page = "登入"
                 st.query_params["page"] = "登入"
+                st.session_state.rerun_triggered = False
+                st.rerun()
         else:
             st.warning("請填入完整資訊")
 
@@ -140,6 +146,8 @@ elif page == "登入":
             st.session_state.remember_me = remember
             st.success(f"歡迎 {login_user}，已成功登入。")
             st.session_state.page = "登入成功"
+            st.session_state.rerun_triggered = False
+            st.rerun()
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
@@ -177,3 +185,5 @@ elif page == "登出":
     st.session_state.remember_me = False
     st.success("您已成功登出。")
     st.session_state.page = "登出完成"
+    st.session_state.rerun_triggered = False
+    st.rerun()
