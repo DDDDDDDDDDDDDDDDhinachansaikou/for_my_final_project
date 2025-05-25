@@ -45,20 +45,25 @@ def get_df():
         df = df.fillna("")
     return df
 
-def save_df(df):
+if "last_save_timestamp" not in st.session_state:
+    st.session_state.last_save_timestamp = 0
+
+def save_df(df, cooldown=2.0):  # cooldown 秒數預設為 2 秒
+    now = time.time()
+    if now - st.session_state.last_save_timestamp < cooldown:
+        st.warning("操作太頻繁，請稍候再試")
+        return False  # 表示此次儲存未執行
+
     df = df.fillna("")
-    
-    # 確保所有欄位都存在且順序一致
-    expected_cols = ['user_id', 'password', 'available_dates', 'friends', 'friend_requests']
-    for col in expected_cols:
-        if col not in df.columns:
-            df[col] = ""
-    df = df[expected_cols]  # 強制按照正確順序排序欄位
-
-    sheet.clear()
-    sheet.update([df.columns.values.tolist()] + df.values.tolist())
-
-
+    try:
+        sheet.clear()
+        sheet.update([df.columns.values.tolist()] + df.values.tolist())
+        st.session_state.last_save_timestamp = now
+        return True  # 儲存成功
+    except Exception as e:
+        st.error(f"儲存時發生錯誤：{e}")
+        return False
+        
 def register_user(user_id, password):
     user_id = str(user_id)
     password = str(password)
