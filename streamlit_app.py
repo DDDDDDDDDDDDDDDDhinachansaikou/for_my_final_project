@@ -8,22 +8,17 @@ from datetime import date
 import time
 import re
 
-# 使用 Streamlit Secrets 讀取 Google Sheets 金鑰
+# === Initialization and Google Sheets connection ===
 secrets = st.secrets["gspread"]
 credentials = service_account.Credentials.from_service_account_info(secrets)
-
-# 指定必要 scope
 scoped_credentials = credentials.with_scopes([
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ])
-
-# 連接 Google Sheets
-SHEET_NAME = 'meeting_records'
 client = gspread.authorize(scoped_credentials)
-sheet = client.open(SHEET_NAME).sheet1
+sheet = client.open('meeting_records').sheet1
 
-# 資料存取函數
+# === Helper Functions ===
 def get_df():
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
@@ -83,10 +78,7 @@ def find_users_by_date(date, current_user_id):
 def show_all_users():
     st.subheader("使用者資料總覽")
     df = get_df()
-    if df.empty:
-        st.info("目前尚無任何註冊使用者")
-    else:
-        st.dataframe(df)
+    st.dataframe(df if not df.empty else pd.DataFrame(["目前尚無任何註冊使用者"], columns=["info"]))
 
 def send_friend_request(from_user, to_user):
     df = get_df()
@@ -120,36 +112,26 @@ def respond_to_friend_request(user_id, requester, accept):
 def get_friends(user_id):
     df = get_df()
     row = df[df['user_id'] == user_id]
-    if not row.empty:
-        return row.iloc[0]['friends'].split(',') if row.iloc[0]['friends'] else []
-    return []
+    return row.iloc[0]['friends'].split(',') if not row.empty and row.iloc[0]['friends'] else []
 
 def get_friend_requests(user_id):
     df = get_df()
     row = df[df['user_id'] == user_id]
-    if not row.empty:
-        return row.iloc[0]['friend_requests'].split(',') if row.iloc[0]['friend_requests'] else []
-    return []
+    return row.iloc[0]['friend_requests'].split(',') if not row.empty and row.iloc[0]['friend_requests'] else []
 
-# 初始化狀態
+# === Page Navigation Setup ===
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'user_id' not in st.session_state:
     st.session_state.user_id = ""
-if 'page_marker' not in st.session_state:
-    st.session_state.page_marker = st.query_params.get("page", ["登入"])[0]
 
-# 導航函數（只透過 query param 控制頁面）
 def navigate_to(page):
     st.query_params["page"] = page
     st.rerun()
 
-# 頁面同步
-query_page = st.query_params.get("page", ["登入"])[0]
-if st.session_state.page_marker != query_page:
-    st.session_state.page_marker = query_page
+current_page = st.query_params.get("page", ["登入"])[0]
 
-# 側邊欄頁面選單
+# === Sidebar Menu ===
 if st.session_state.authenticated:
     pages = ["登記可用時間", "查詢可配對使用者", "好友管理"]
     if st.session_state.user_id == "GM":
@@ -158,10 +140,12 @@ if st.session_state.authenticated:
 else:
     pages = ["登入", "註冊"]
 
-current_page = st.session_state.page_marker if st.session_state.page_marker in pages else pages[0]
+if current_page not in pages:
+    navigate_to(pages[0])
+
 st.sidebar.radio("選擇功能", pages, index=pages.index(current_page), key="page")
 
-# 頁面功能整合
+# === Page Content ===
 if current_page == "註冊":
     st.header("註冊帳號")
     new_user = st.text_input("新使用者 ID")
@@ -223,15 +207,11 @@ elif current_page == "登出":
     st.session_state.user_id = ""
     navigate_to("登入")
 
-if current_page == "好友管理" and st.session_state.authenticated:
+elif current_page == "好友管理" and st.session_state.authenticated:
     st.header("好友管理")
-
     st.subheader("目前好友")
     friends = get_friends(st.session_state.user_id)
-    if friends:
-        st.markdown(", ".join(friends))
-    else:
-        st.info("目前尚無好友")
+    st.markdown(", ".join(friends) if friends else "目前尚無好友")
 
     st.subheader("發送好友申請")
     to_user = st.text_input("輸入要加為好友的使用者 ID")
@@ -267,4 +247,4 @@ if current_page == "好友管理" and st.session_state.authenticated:
             dates = row.iloc[0]['available_dates']
             st.markdown(f"**{selected_friend}** 的可用時間為：\n{dates}")
     else:
-        st
+        st.info("尚無好友可以查詢")
