@@ -5,6 +5,7 @@ import json
 from google.oauth2 import service_account
 import gspread
 from datetime import date
+import time
 
 # 使用 Streamlit Secrets 讀取 Google Sheets 金鑰
 secrets = st.secrets["gspread"]
@@ -92,8 +93,10 @@ if 'remember_me' not in st.session_state:
 
 # 自動頁面跳轉
 if st.session_state.page == "登入成功":
+    time.sleep(1)
     st.session_state.page = "登記可用時間"
 elif st.session_state.page == "登出完成":
+    time.sleep(1)
     st.session_state.page = "登入"
 
 # 功能選單
