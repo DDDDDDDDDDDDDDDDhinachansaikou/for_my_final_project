@@ -23,16 +23,13 @@ SHEET_NAME = 'meeting_records'
 client = gspread.authorize(scoped_credentials)
 sheet = client.open(SHEET_NAME).sheet1
 
-# === Helper Functions ===
+# 資料存取函數
 def get_df():
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
     if df.empty:
-        df = pd.DataFrame(columns=['user_id', 'password', 'available_dates', 'friends', 'friend_requests'])
+        df = pd.DataFrame(columns=['user_id', 'password', 'available_dates'])
     else:
-        for col in ['user_id', 'password', 'available_dates', 'friends', 'friend_requests']:
-            if col not in df.columns:
-                df[col] = ''
         df['user_id'] = df['user_id'].astype(str)
         df['password'] = df['password'].astype(str)
     return df
@@ -48,15 +45,11 @@ def register_user(user_id, password):
         st.warning("密碼必須至少 6 個字元，且包含至少一個英文字母")
         return False
     df = get_df()
+    if 'user_id' not in df.columns:
+        df['user_id'] = ''
     if user_id in df['user_id'].values:
         return False
-    new_entry = pd.DataFrame([{
-        'user_id': user_id,
-        'password': password,
-        'available_dates': '',
-        'friends': '',
-        'friend_requests': ''
-    }])
+    new_entry = pd.DataFrame([{'user_id': user_id, 'password': password, 'available_dates': ''}])
     df = pd.concat([df, new_entry], ignore_index=True)
     save_df(df)
     return True
@@ -65,6 +58,8 @@ def authenticate_user(user_id, password):
     user_id = str(user_id)
     password = str(password)
     df = get_df()
+    if 'user_id' not in df.columns or 'password' not in df.columns:
+        return False
     match = df[(df['user_id'] == user_id) & (df['password'] == password)]
     return not match.empty
 
@@ -77,179 +72,128 @@ def update_availability(user_id, available_dates):
 
 def find_users_by_date(date, current_user_id):
     df = get_df()
+    if 'available_dates' not in df.columns:
+        return []
     matched = df[(df['available_dates'].str.contains(date, na=False)) & (df['user_id'] != current_user_id)]['user_id'].tolist()
     return matched
 
 def show_all_users():
     st.subheader("使用者資料總覽")
     df = get_df()
-    st.dataframe(df if not df.empty else pd.DataFrame(["目前尚無任何註冊使用者"], columns=["info"]))
+    if df.empty:
+        st.info("目前尚無任何註冊使用者")
+    else:
+        st.dataframe(df)
 
-def send_friend_request(from_user, to_user):
-    df = get_df()
-    if to_user not in df['user_id'].values:
-        st.error("此使用者不存在")
-        return
-    to_index = df[df['user_id'] == to_user].index[0]
-    requests = df.at[to_index, 'friend_requests'].split(',') if df.at[to_index, 'friend_requests'] else []
-    if from_user not in requests:
-        requests.append(from_user)
-    df.at[to_index, 'friend_requests'] = ','.join([r for r in requests if r])
-    save_df(df)
-    st.success("好友申請已送出")
+# Streamlit App
+st.title("多人會議可用時間系統")
 
-def respond_to_friend_request(user_id, requester, accept):
-    df = get_df()
-    user_index = df[df['user_id'] == user_id].index[0]
-    req_index = df[df['user_id'] == requester].index[0]
-    requests = df.at[user_index, 'friend_requests'].split(',') if df.at[user_index, 'friend_requests'] else []
-    requests = [r for r in requests if r != requester]
-    df.at[user_index, 'friend_requests'] = ','.join(requests)
-    if accept:
-        for u, i in [(user_id, req_index), (requester, user_index)]:
-            friends = df.at[i, 'friends'].split(',') if df.at[i, 'friends'] else []
-            if u not in friends:
-                friends.append(u)
-            df.at[i, 'friends'] = ','.join([f for f in friends if f])
-    save_df(df)
-    st.success("已更新好友狀態")
-
-def get_friends(user_id):
-    df = get_df()
-    row = df[df['user_id'] == user_id]
-    return row.iloc[0]['friends'].split(',') if not row.empty and row.iloc[0]['friends'] else []
-
-def get_friend_requests(user_id):
-    df = get_df()
-    row = df[df['user_id'] == user_id]
-    return row.iloc[0]['friend_requests'].split(',') if not row.empty and row.iloc[0]['friend_requests'] else []
-
-# === Page Navigation Setup ===
+# 初始化 session state
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
 if 'user_id' not in st.session_state:
     st.session_state.user_id = ""
+if 'page' not in st.session_state:
+    st.session_state.page = "登入"
+if 'remember_me' not in st.session_state:
+    st.session_state.remember_me = False
+if 'rerun_triggered' not in st.session_state:
+    st.session_state.rerun_triggered = False
 
-def navigate_to(page):
-    st.query_params["page"] = page
+# URL query-based page control
+query_page = st.query_params.get("page")
+if query_page and st.session_state.page != query_page:
+    st.session_state.page = query_page
+
+# 自動跳轉處理
+if st.session_state.page == "登入成功" and not st.session_state.rerun_triggered:
+    st.session_state.page = "登記可用時間"
+    st.query_params["page"] = "登記可用時間"
+    st.session_state.rerun_triggered = True
+    st.rerun()
+elif st.session_state.page == "登出完成" and not st.session_state.rerun_triggered:
+    st.session_state.page = "登入"
+    st.query_params["page"] = "登入"
+    st.session_state.rerun_triggered = True
     st.rerun()
 
-current_page = st.query_params.get("page", ["登入"])[0]
-
-# === Sidebar Menu ===
+# 功能選單
+page_options = ["登入", "註冊"]
 if st.session_state.authenticated:
-    pages = ["登記可用時間", "查詢可配對使用者", "好友管理"]
+    page_options = ["登記可用時間", "查詢可配對使用者"]
     if st.session_state.user_id == "GM":
-        pages.append("管理介面")
-    pages.append("登出")
-else:
-    pages = ["登入", "註冊"]
+        page_options.append("管理介面")
+    page_options.append("登出")
 
-if current_page not in pages:
-    navigate_to(pages[0])
+selected_page = st.sidebar.radio("選擇功能", page_options, index=page_options.index(st.session_state.page) if st.session_state.page in page_options else 0)
+st.session_state.page = selected_page
+page = selected_page
 
-st.sidebar.radio("選擇功能", pages, index=pages.index(current_page), key="page")
-
-# === Page Content ===
-if current_page == "註冊":
+if page == "註冊":
     st.header("註冊帳號")
-    new_user = st.text_input("新使用者 ID")
-    new_pass = st.text_input("密碼", type="password")
+    new_user = st.text_input("請輸入新使用者 ID")
+    new_pass = st.text_input("請輸入密碼", type="password")
     if st.button("註冊"):
         if new_user and new_pass:
             if register_user(new_user, new_pass):
                 st.success("註冊成功！請前往登入頁面")
-                navigate_to("登入")
-            else:
-                st.warning("使用者已存在或密碼不合規")
+                st.session_state.page = "登入"
+                st.query_params["page"] = "登入"
+                st.session_state.rerun_triggered = False
+                st.rerun()
+        else:
+            st.warning("請填入完整資訊")
 
-elif current_page == "登入":
+elif page == "登入":
     st.header("登入帳號")
     login_user = st.text_input("使用者 ID")
     login_pass = st.text_input("密碼", type="password")
+    remember = st.checkbox("記住我")
     if st.button("登入"):
         if authenticate_user(login_user, login_pass):
             st.session_state.authenticated = True
             st.session_state.user_id = login_user
+            st.session_state.remember_me = remember
             st.success(f"歡迎 {login_user}，已成功登入。")
-            navigate_to("登記可用時間")
+            st.session_state.page = "登入成功"
+            st.session_state.rerun_triggered = False
+            st.rerun()
         else:
-            st.error("帳號或密碼錯誤")
+            st.error("登入失敗，請重新確認帳號與密碼")
 
-elif current_page == "登記可用時間" and st.session_state.authenticated:
-    st.header("登記可用時間")
+elif page == "登記可用時間" and st.session_state.authenticated:
+    st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
     date_range = pd.date_range(date.today(), periods=30).tolist()
-    selected_dates = st.multiselect("選擇可用日期", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
+    selected_dates = st.multiselect("請選擇可用日期：", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
     if st.button("更新可用日期"):
         selected_strs = [d.strftime("%Y-%m-%d") for d in selected_dates]
         update_availability(st.session_state.user_id, selected_strs)
 
-elif current_page == "查詢可配對使用者" and st.session_state.authenticated:
-    st.header("查詢可配對使用者")
+elif page == "查詢可配對使用者" and st.session_state.authenticated:
+    st.header("查詢誰在某天有空")
     date_range = pd.date_range(date.today(), periods=30).tolist()
-    query_dates = st.multiselect("選擇查詢日期", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
+    query_dates = st.multiselect("選擇查詢日期：", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
+    query_strs = [d.strftime("%Y-%m-%d") for d in query_dates]
     if st.button("查詢"):
-        df = get_df()
-        results = {}
-        for d in query_dates:
-            date_str = d.strftime("%Y-%m-%d")
-            users = find_users_by_date(date_str, st.session_state.user_id)
+        any_found = False
+        for q in query_strs:
+            users = find_users_by_date(q, st.session_state.user_id)
             if users:
-                results[date_str] = users
-        if results:
-            for d, users in results.items():
-                st.markdown(f"### {d}")
-                for u in users:
-                    st.markdown(f"- {u}")
-        else:
-            st.warning("選擇日期中無配對使用者")
+                any_found = True
+                st.markdown(f"### {q} 有空的使用者：")
+                for user in users:
+                    st.markdown(f"- {user}")
+        if not any_found:
+            st.warning("所選日期中無人可配對")
 
-elif current_page == "管理介面" and st.session_state.user_id == "GM":
+elif page == "管理介面" and st.session_state.authenticated and st.session_state.user_id == "GM":
     show_all_users()
 
-elif current_page == "登出":
+elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
-    navigate_to("登入")
-
-elif current_page == "好友管理" and st.session_state.authenticated:
-    st.header("好友管理")
-    st.subheader("目前好友")
-    friends = get_friends(st.session_state.user_id)
-    st.markdown(", ".join(friends) if friends else "目前尚無好友")
-
-    st.subheader("發送好友申請")
-    to_user = st.text_input("輸入要加為好友的使用者 ID")
-    if st.button("送出好友申請"):
-        if to_user != st.session_state.user_id:
-            send_friend_request(st.session_state.user_id, to_user)
-        else:
-            st.warning("不能加自己為好友")
-
-    st.subheader("收到的好友申請")
-    requests = get_friend_requests(st.session_state.user_id)
-    if requests:
-        for r in requests:
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.markdown(f"好友申請來自：**{r}**")
-            with col2:
-                if st.button(f"接受_{r}"):
-                    respond_to_friend_request(st.session_state.user_id, r, True)
-                    st.rerun()
-                if st.button(f"拒絕_{r}"):
-                    respond_to_friend_request(st.session_state.user_id, r, False)
-                    st.rerun()
-    else:
-        st.info("目前無收到好友申請")
-
-    st.subheader("查詢好友的可用時間")
-    if friends:
-        selected_friend = st.selectbox("選擇好友", friends)
-        df = get_df()
-        row = df[df['user_id'] == selected_friend]
-        if not row.empty:
-            dates = row.iloc[0]['available_dates']
-            st.markdown(f"**{selected_friend}** 的可用時間為：\n{dates}")
-    else:
-        st.info("尚無好友可以查詢")
+    st.session_state.remember_me = False
+    st.success("您已成功登出。")
+    st.session_state.page = "登出完成"
+    st.session_state.rerun_triggered = False
+    st.rerun()
