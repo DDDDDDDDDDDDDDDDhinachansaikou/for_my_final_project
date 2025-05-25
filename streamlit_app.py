@@ -47,8 +47,17 @@ def get_df():
 
 def save_df(df):
     df = df.fillna("")
+    
+    # 確保所有欄位都存在且順序一致
+    expected_cols = ['user_id', 'password', 'available_dates', 'friends', 'friend_requests']
+    for col in expected_cols:
+        if col not in df.columns:
+            df[col] = ""
+    df = df[expected_cols]  # 強制按照正確順序排序欄位
+
     sheet.clear()
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
+
 
 def register_user(user_id, password):
     user_id = str(user_id)
