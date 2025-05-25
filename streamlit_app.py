@@ -123,7 +123,7 @@ elif page == "登入":
 
 elif page == "登記可用時間" and st.session_state.authenticated:
     st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
-    dates = st.text_input("可用日期（以逗號分隔）")
+    dates = st.text_input("可用日期（格式：2025-06-01，以逗號分隔）")
     if st.button("提交可用日期"):
         date_list = [d.strip() for d in dates.split(',') if d.strip()]
         update_availability(st.session_state.user_id, date_list)
@@ -140,7 +140,7 @@ elif page == "查詢可配對使用者" and st.session_state.authenticated:
             else:
                 st.warning("當天無人可配對")
         else:
-            st.warning("請輸入查詢日期")
+            st.warning("請輸入查詢日期（格式：2025-06-01）")
 
 elif page == "管理介面" and st.session_state.authenticated:
     show_all_users()
