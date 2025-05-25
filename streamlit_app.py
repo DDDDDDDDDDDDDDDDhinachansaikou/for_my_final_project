@@ -116,9 +116,8 @@ elif page == "登入":
         if authenticate_user(login_user, login_pass):
             st.session_state.authenticated = True
             st.session_state.user_id = login_user
-            st.success(f"歡迎 {login_user}，系統即將跳轉至登記頁面。")
             st.session_state.page = "登記可用時間"
-            st.experimental_rerun()
+            st.success(f"歡迎 {login_user}，已成功登入。請在左側選單繼續操作。")
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
@@ -155,5 +154,4 @@ elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
     st.session_state.page = "登入"
-    st.success("您已成功登出，系統即將回到登入頁面。")
-    st.experimental_rerun()
+    st.success("您已成功登出，請重新登入。")
