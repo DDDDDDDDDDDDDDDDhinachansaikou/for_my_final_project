@@ -143,6 +143,7 @@ if 'page_marker' not in st.session_state:
 
 def navigate_to(page):
     st.query_params["page"] = page
+    st.session_state.page_marker = page
     st.rerun()
 
 # 頁面同步
@@ -159,7 +160,8 @@ if st.session_state.authenticated:
 else:
     pages = ["登入", "註冊"]
 
-st.sidebar.radio("選擇功能", pages, index=pages.index(st.session_state.page), key="page")
+current_page = st.session_state.page if st.session_state.page in pages else pages[0]
+st.sidebar.radio("選擇功能", pages, index=pages.index(current_page), key="page")
 
 # 頁面功能整合
 if st.session_state.page == "註冊":
