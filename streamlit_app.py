@@ -21,9 +21,15 @@ scoped_credentials = credentials.with_scopes([
 # 連接 Google Sheets
 SHEET_NAME = 'meeting_records'
 client = gspread.authorize(scoped_credentials)
-sheet = client.open(SHEET_NAME).sheet1
+try:
+    sheet = client.open(SHEET_NAME).sheet1
+except gspread.exceptions.SpreadsheetNotFound:
+    st.error(f"找不到名為 `{SHEET_NAME}` 的 Google Sheets 文件，請確認名稱是否正確")
+    st.stop()
+except gspread.exceptions.APIError as e:
+    st.error(f"Google Sheets API 錯誤：{e}")
+    st.stop()
 
-# 資料存取函數
 @st.cache_data(ttl=60)
 def get_df():
     records = sheet.get_all_records()
@@ -36,9 +42,11 @@ def get_df():
                 df[col] = ''
         df['user_id'] = df['user_id'].astype(str)
         df['password'] = df['password'].astype(str)
+        df = df.fillna("")
     return df
 
 def save_df(df):
+    df = df.fillna("")
     sheet.clear()
     sheet.update([df.columns.values.tolist()] + df.values.tolist())
 
@@ -128,67 +136,7 @@ def respond_to_requests(user_id):
                 df.at[idx, 'friend_requests'] = ','.join([r for r in requests if r != requester])
                 save_df(df)
                 st.info(f"已拒絕 {requester} 的好友申請")
-                
-def get_df():
-    records = sheet.get_all_records()
-    df = pd.DataFrame(records)
-    if df.empty:
-        df = pd.DataFrame(columns=['user_id', 'password', 'available_dates'])
-    else:
-        df['user_id'] = df['user_id'].astype(str)
-        df['password'] = df['password'].astype(str)
-    return df
 
-def save_df(df):
-    sheet.clear()
-    sheet.update([df.columns.values.tolist()] + df.values.tolist())
-
-def register_user(user_id, password):
-    user_id = str(user_id)
-    password = str(password)
-    if len(password) < 6 or not re.search(r'[A-Za-z]', password):
-        st.warning("密碼必須至少 6 個字元，且包含至少一個英文字母")
-        return False
-    df = get_df()
-    if 'user_id' not in df.columns:
-        df['user_id'] = ''
-    if user_id in df['user_id'].values:
-        return False
-    new_entry = pd.DataFrame([{'user_id': user_id, 'password': password, 'available_dates': ''}])
-    df = pd.concat([df, new_entry], ignore_index=True)
-    save_df(df)
-    return True
-
-def authenticate_user(user_id, password):
-    user_id = str(user_id)
-    password = str(password)
-    df = get_df()
-    if 'user_id' not in df.columns or 'password' not in df.columns:
-        return False
-    match = df[(df['user_id'] == user_id) & (df['password'] == password)]
-    return not match.empty
-
-def update_availability(user_id, available_dates):
-    df = get_df()
-    date_str = ','.join(available_dates)
-    df.loc[df['user_id'] == user_id, 'available_dates'] = date_str
-    save_df(df)
-    st.success(f"使用者 {user_id} 的可用日期已更新為：{date_str}")
-
-def find_users_by_date(date, current_user_id):
-    df = get_df()
-    if 'available_dates' not in df.columns:
-        return []
-    matched = df[(df['available_dates'].str.contains(date, na=False)) & (df['user_id'] != current_user_id)]['user_id'].tolist()
-    return matched
-
-def show_all_users():
-    st.subheader("使用者資料總覽")
-    df = get_df()
-    if df.empty:
-        st.info("目前尚無任何註冊使用者")
-    else:
-        st.dataframe(df)
 def show_friends_availability(user_id):
     df = get_df()
     idx = df[df['user_id'] == user_id].index[0]
@@ -205,7 +153,7 @@ def show_friends_availability(user_id):
             dates = friend_data.iloc[0]['available_dates']
             date_list = dates.split(',') if dates else []
             st.markdown(f"**{friend}**: {'、'.join(date_list) if date_list else '尚未登記'}")
-# Streamlit App
+
 st.title("多人會議可用時間系統")
 
 # 初始化 session state
