@@ -21,15 +21,7 @@ scoped_credentials = credentials.with_scopes([
 # 連接 Google Sheets
 SHEET_NAME = 'meeting_records'
 client = gspread.authorize(scoped_credentials)
-try:
-    sheet = client.open(SHEET_NAME).sheet1
-except gspread.exceptions.SpreadsheetNotFound:
-    st.error(f"找不到名為 `{SHEET_NAME}` 的 Google Sheets 文件，請確認名稱是否正確")
-    st.stop()
-except gspread.exceptions.APIError as e:
-    st.error(f"Google Sheets API 錯誤：{e}")
-    st.stop()
-
+sheet = client.open(SHEET_NAME).sheet1
 
 # === Helper Functions ===
 def get_df():
