@@ -90,7 +90,13 @@ if 'page' not in st.session_state:
 if 'remember_me' not in st.session_state:
     st.session_state.remember_me = False
 
-# 功能選單（無論登入與否都顯示，登入後才執行）
+# 自動頁面跳轉
+if st.session_state.page == "登入成功":
+    st.session_state.page = "登記可用時間"
+elif st.session_state.page == "登出完成":
+    st.session_state.page = "登入"
+
+# 功能選單
 page_options = ["登入", "註冊"]
 if st.session_state.authenticated:
     page_options = ["登記可用時間", "查詢可配對使用者", "管理介面", "登出"]
@@ -125,11 +131,6 @@ elif page == "登入":
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
-elif page == "登入成功":
-    st.success(f"歡迎 {st.session_state.user_id}，您已登入成功。")
-    if st.button("前往登記可用時間"):
-        st.session_state.page = "登記可用時間"
-
 elif page == "登記可用時間" and st.session_state.authenticated:
     st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
     date_range = pd.date_range(date.today(), periods=30).tolist()
@@ -159,8 +160,3 @@ elif page == "登出":
     st.session_state.page = "登出完成"
     st.session_state.remember_me = False
     st.success("您已成功登出。")
-
-elif page == "登出完成":
-    st.success("您已成功登出。")
-    if st.button("回到登入畫面"):
-        st.session_state.page = "登入"
