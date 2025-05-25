@@ -24,7 +24,6 @@ sheet = client.open(SHEET_NAME).sheet1
 def get_df():
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
-    # 如果表格是空的，初始化欄位
     if df.empty:
         df = pd.DataFrame(columns=['user_id', 'password', 'available_dates'])
     return df
@@ -80,8 +79,17 @@ def show_all_users():
 # Streamlit App
 st.title("多人會議可用時間系統")
 
-# 預設頁面為登入，並提供註冊與管理功能
-page = st.sidebar.radio("選擇功能", ["登入", "註冊", "查詢可配對使用者", "管理介面"])
+# 初始化 session state
+if 'authenticated' not in st.session_state:
+    st.session_state.authenticated = False
+if 'user_id' not in st.session_state:
+    st.session_state.user_id = ""
+
+# 預設頁面為登入，登入後才顯示更多功能
+if not st.session_state.authenticated:
+    page = st.sidebar.radio("選擇功能", ["登入", "註冊"])
+else:
+    page = st.sidebar.radio("選擇功能", ["登記可用時間", "查詢可配對使用者", "管理介面", "登出"])
 
 if page == "註冊":
     st.header("註冊帳號")
@@ -102,13 +110,18 @@ elif page == "登入":
     login_pass = st.text_input("密碼", type="password")
     if st.button("登入"):
         if authenticate_user(login_user, login_pass):
-            st.success(f"歡迎 {login_user}，請輸入你的可用日期：")
-            dates = st.text_input("可用日期（以逗號分隔）")
-            if st.button("提交可用日期"):
-                date_list = [d.strip() for d in dates.split(',') if d.strip()]
-                update_availability(login_user, date_list)
+            st.session_state.authenticated = True
+            st.session_state.user_id = login_user
+            st.success(f"歡迎 {login_user}，請從左側選單選擇功能")
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
+
+elif page == "登記可用時間":
+    st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
+    dates = st.text_input("可用日期（以逗號分隔）")
+    if st.button("提交可用日期"):
+        date_list = [d.strip() for d in dates.split(',') if d.strip()]
+        update_availability(st.session_state.user_id, date_list)
 
 elif page == "查詢可配對使用者":
     st.header("查詢誰在某天有空")
@@ -126,3 +139,8 @@ elif page == "查詢可配對使用者":
 
 elif page == "管理介面":
     show_all_users()
+
+elif page == "登出":
+    st.session_state.authenticated = False
+    st.session_state.user_id = ""
+    st.success("您已成功登出")
