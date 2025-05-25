@@ -6,6 +6,7 @@ from google.oauth2 import service_account
 import gspread
 from datetime import date
 import time
+import re
 
 # 使用 Streamlit Secrets 讀取 Google Sheets 金鑰
 secrets = st.secrets["gspread"]
@@ -28,6 +29,9 @@ def get_df():
     df = pd.DataFrame(records)
     if df.empty:
         df = pd.DataFrame(columns=['user_id', 'password', 'available_dates'])
+    else:
+        df['user_id'] = df['user_id'].astype(str)
+        df['password'] = df['password'].astype(str)
     return df
 
 def save_df(df):
@@ -37,6 +41,9 @@ def save_df(df):
 def register_user(user_id, password):
     user_id = str(user_id)
     password = str(password)
+    if len(password) < 6 or not re.search(r'[A-Za-z]', password):
+        st.warning("密碼必須至少 6 個字元，且包含至少一個英文字母")
+        return False
     df = get_df()
     if 'user_id' not in df.columns:
         df['user_id'] = ''
