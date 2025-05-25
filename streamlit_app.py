@@ -80,6 +80,11 @@ def show_all_users():
 # Streamlit App
 st.title("多人會議可用時間系統")
 
+# URL query-based page control
+query_page = st.query_params.get("page")
+if query_page:
+    st.session_state.page = query_page
+
 # 初始化 session state
 if 'authenticated' not in st.session_state:
     st.session_state.authenticated = False
@@ -96,6 +101,7 @@ if st.session_state.authenticated:
     page_options = ["登記可用時間", "查詢可配對使用者", "管理介面", "登出"]
 
 selected_page = st.sidebar.radio("選擇功能", page_options, index=page_options.index(st.session_state.page) if st.session_state.page in page_options else 0)
+st.session_state.page = selected_page
 page = selected_page
 
 if page == "註冊":
@@ -106,8 +112,7 @@ if page == "註冊":
         if new_user and new_pass:
             if register_user(new_user, new_pass):
                 st.success("註冊成功！請前往登入頁面")
-                st.session_state.page = "登入"
-                st.session_state.go_to_login = True
+                st.query_params["page"] = "登入"
         else:
             st.warning("請填入完整資訊")
 
@@ -120,10 +125,9 @@ elif page == "登入":
         if authenticate_user(login_user, login_pass):
             st.session_state.authenticated = True
             st.session_state.user_id = login_user
-            st.session_state.page = "登記可用時間"
             st.session_state.remember_me = remember
             st.success(f"歡迎 {login_user}，已成功登入。")
-            st.session_state.go_to_availability = True
+            st.query_params["page"] = "登記可用時間"
         else:
             st.error("登入失敗，請重新確認帳號與密碼")
 
@@ -154,18 +158,6 @@ elif page == "管理介面" and st.session_state.authenticated:
 elif page == "登出":
     st.session_state.authenticated = False
     st.session_state.user_id = ""
-    st.session_state.page = "登入"
     st.session_state.remember_me = False
     st.success("您已成功登出。")
-    st.session_state.go_to_login = True
-
-# 手動控制跳轉避免 experimental_rerun
-if st.session_state.get("go_to_availability"):
-    st.session_state.page = "登記可用時間"
-    st.session_state.go_to_availability = False
-    st.query_params.clear()
-
-if st.session_state.get("go_to_login"):
-    st.session_state.page = "登入"
-    st.session_state.go_to_login = False
-    st.query_params.clear()
+    st.query_params["page"] = "登入"
