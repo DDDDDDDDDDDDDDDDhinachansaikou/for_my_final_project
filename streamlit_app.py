@@ -101,73 +101,59 @@ def show_all_users():
     df = get_df()
     st.dataframe(df)
 
+
+# 儲存每位用戶的上次送出好友申請的時間（session 範圍）
+if "friend_request_timestamps" not in st.session_state:
+    st.session_state.friend_request_timestamps = {}
+
 def send_friend_request(current_user, target_user):
+    if current_user == target_user:
+        st.warning("不能對自己發送好友申請")
+        return
+
     df = get_df()
+
     if target_user not in df['user_id'].values:
         st.error("使用者不存在")
         return
 
-    if current_user == target_user:
-        st.warning("無法向自己發送好友申請")
+    # 檢查是否為好友
+    curr_friends = df.loc[df['user_id'] == current_user, 'friends'].values[0]
+    curr_friends_set = set(curr_friends.split(',')) if curr_friends else set()
+    if target_user in curr_friends_set:
+        st.info("你們已經是好友")
         return
 
-    target_idx = df[df['user_id'] == target_user].index[0]
-    requester_idx = df[df['user_id'] == current_user].index[0]
-
-    target_friends = set(filter(None, df.at[target_idx, 'friends'].split(',')))
-    if current_user in target_friends:
-        st.info("您們已經是好友了")
+    # 檢查是否已收到對方的申請
+    curr_requests = df.loc[df['user_id'] == current_user, 'friend_requests'].values[0]
+    curr_requests_set = set(curr_requests.split(',')) if curr_requests else set()
+    if target_user in curr_requests_set:
+        st.info(f"{target_user} 已經對你發送好友申請，請回應")
         return
 
-    existing_requests = set(filter(None, df.at[target_idx, 'friend_requests'].split(',')))
-    if current_user in existing_requests:
-        st.info("已發送好友申請")
+    # 檢查是否已發送過
+    target_requests = df.loc[df['user_id'] == target_user, 'friend_requests'].values[0]
+    target_requests_set = set(target_requests.split(',')) if target_requests else set()
+    if current_user in target_requests_set:
+        st.info("已發送好友申請，請等待對方回應")
         return
 
-    existing_requests.add(current_user)
-    df.at[target_idx, 'friend_requests'] = ','.join(existing_requests)
+    # 防止 bouncing - 緩衝 1 秒
+    now = time.time()
+    last_sent = st.session_state.friend_request_timestamps.get(target_user, 0)
+    if now - last_sent < 1:
+        st.warning("您剛剛才發送過申請，請稍候再試")
+        return
+
+    # 發送好友申請
+    target_requests_set.add(current_user)
+    df.loc[df['user_id'] == target_user, 'friend_requests'] = ','.join(target_requests_set)
+
     save_df(df)
+    st.cache_data.clear()
+
+    st.session_state.friend_request_timestamps[target_user] = now
     st.success("好友申請已送出")
-
-
-def respond_to_requests(user_id):
-    df = get_df()
-    idx = df[df['user_id'] == user_id].index[0]
-    requests = list(filter(None, df.at[idx, 'friend_requests'].split(',')))
-
-    if not requests:
-        st.info("目前沒有好友申請")
-        return
-
-    current_friends = set(filter(None, df.at[idx, 'friends'].split(',')))
-
-    for requester in requests:
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            st.write(f"來自 {requester} 的好友申請")
-        with col2:
-            if st.button("接受", key=f"accept_{requester}"):
-                if requester not in current_friends:
-                    current_friends.add(requester)
-                    df.at[idx, 'friends'] = ','.join(current_friends)
-
-                    requester_idx = df[df['user_id'] == requester].index[0]
-                    requester_friends = set(filter(None, df.at[requester_idx, 'friends'].split(',')))
-                    requester_friends.add(user_id)
-                    df.at[requester_idx, 'friends'] = ','.join(requester_friends)
-
-                # 不論接受或拒絕，申請都應移除
-                updated_requests = [r for r in requests if r != requester]
-                df.at[idx, 'friend_requests'] = ','.join(updated_requests)
-                save_df(df)
-                st.success(f"您已與 {requester} 成為好友")
-
-            elif st.button("拒絕", key=f"reject_{requester}"):
-                updated_requests = [r for r in requests if r != requester]
-                df.at[idx, 'friend_requests'] = ','.join(updated_requests)
-                save_df(df)
-                st.info(f"已拒絕 {requester} 的好友申請")
-
 
 def show_friends_availability(user_id):
     df = get_df()
