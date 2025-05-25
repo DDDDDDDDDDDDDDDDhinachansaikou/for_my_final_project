@@ -124,7 +124,8 @@ elif page == "登入":
 
 elif page == "登記可用時間" and st.session_state.authenticated:
     st.header(f"使用者 {st.session_state.user_id} 可用時間登記")
-    selected_dates = st.multiselect("請選擇可用日期：", pd.date_range(date.today(), periods=30).tolist(), format_func=lambda d: d.strftime("%Y-%m-%d"))
+    date_range = pd.date_range(date.today(), periods=30).tolist()
+    selected_dates = st.multiselect("請選擇可用日期：", date_range, format_func=lambda d: d.strftime("%Y-%m-%d"))
     date_str_list = [d.strftime("%Y-%m-%d") for d in selected_dates]
     if st.button("提交可用日期"):
         if date_str_list:
@@ -134,9 +135,9 @@ elif page == "登記可用時間" and st.session_state.authenticated:
 
 elif page == "查詢可配對使用者" and st.session_state.authenticated:
     st.header("查詢誰在某天有空")
-    query_date = st.date_input("選擇查詢日期：")
+    query_date = st.selectbox("選擇查詢日期：", pd.date_range(date.today(), periods=30).tolist(), format_func=lambda d: d.strftime("%Y-%m-%d"))
+    query_str = query_date.strftime("%Y-%m-%d")
     if st.button("查詢"):
-        query_str = query_date.strftime("%Y-%m-%d")
         users = find_users_by_date(query_str, st.session_state.user_id)
         if users:
             st.info(f"在 {query_str} 有空的使用者：")
