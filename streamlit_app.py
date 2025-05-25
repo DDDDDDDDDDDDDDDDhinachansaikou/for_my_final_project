@@ -189,7 +189,22 @@ def show_all_users():
         st.info("目前尚無任何註冊使用者")
     else:
         st.dataframe(df)
+def show_friends_availability(user_id):
+    df = get_df()
+    idx = df[df['user_id'] == user_id].index[0]
+    friends = df.at[idx, 'friends']
+    friends = list(filter(None, friends.split(',')))
+    if not friends:
+        st.info("目前尚無好友")
+        return
 
+    st.subheader("好友的空閒日期")
+    for friend in friends:
+        friend_data = df[df['user_id'] == friend]
+        if not friend_data.empty:
+            dates = friend_data.iloc[0]['available_dates']
+            date_list = dates.split(',') if dates else []
+            st.markdown(f"**{friend}**: {'、'.join(date_list) if date_list else '尚未登記'}")
 # Streamlit App
 st.title("多人會議可用時間系統")
 
@@ -311,3 +326,5 @@ if st.session_state.get("authenticated"):
             send_friend_request(st.session_state.user_id, target)
     with st.sidebar.expander("回應好友申請"):
         respond_to_requests(st.session_state.user_id)
+    with st.sidebar.expander("查看好友空閒時間"):
+        show_friends_availability(st.session_state.user_id)
