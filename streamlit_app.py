@@ -163,9 +163,9 @@ elif page == "登出":
 if st.session_state.get("go_to_availability"):
     st.session_state.page = "登記可用時間"
     st.session_state.go_to_availability = False
-    st.experimental_set_query_params()
+    st.query_params.clear()
 
 if st.session_state.get("go_to_login"):
     st.session_state.page = "登入"
     st.session_state.go_to_login = False
-    st.experimental_set_query_params()
+    st.query_params.clear()
