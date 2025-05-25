@@ -161,8 +161,10 @@ if 'page' in st.session_state and st.session_state.get('authenticated', False):
                 with col2:
                     if st.button(f"接受_{r}"):
                         respond_to_friend_request(st.session_state.user_id, r, True)
+                        st.rerun()
                     if st.button(f"拒絕_{r}"):
                         respond_to_friend_request(st.session_state.user_id, r, False)
+                        st.rerun()
         else:
             st.info("目前無收到好友申請")
 
